@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VidDrop — Video Downloader</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080a0f;
+      --surface: #0e1118;
+      --border: #1e2535;
+      --accent: #00e5ff;
+      --accent2: #ff3cac;
+      --accent3: #7b2fff;
+      --text: #e8eaf0;
+      --muted: #556070;
+      --success: #00f5a0;
+      --error: #ff4757;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── GLOW ORBS ── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: .35;
+    }
+    .orb-1 { width: 500px; height: 500px; background: var(--accent3); top: -150px; left: -100px; animation: drift1 12s ease-in-out infinite alternate; }
+    .orb-2 { width: 400px; height: 400px; background: var(--accent2); bottom: -100px; right: -80px; animation: drift2 10s ease-in-out infinite alternate; }
+    .orb-3 { width: 300px; height: 300px; background: var(--accent); top: 50%; left: 50%; transform: translate(-50%, -50%); animation: drift3 8s ease-in-out infinite alternate; opacity: .15; }
+
+    @keyframes drift1 { from { transform: translate(0,0) scale(1); } to { transform: translate(60px, 40px) scale(1.1); } }
+    @keyframes drift2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-50px, -30px) scale(1.05); } }
+    @keyframes drift3 { from { opacity: .1; } to { opacity: .2; } }
+
+    /* ── WRAPPER ── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+      animation: fadeDown .8s ease both;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,229,255,.08);
+      border: 1px solid rgba(0,229,255,.25);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 11px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 28px;
+    }
+
+    .logo-badge svg { width: 14px; height: 14px; }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.8rem, 8vw, 5rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -.02em;
+      background: linear-gradient(135deg, #fff 30%, var(--accent) 70%, var(--accent3) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: .02em;
+      line-height: 1.7;
+    }
+
+    /* ── PLATFORM PILLS ── */
+    .platforms {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .05em;
+      transition: all .2s;
+    }
+
+    .pill:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp .9s ease both;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: .5;
+    }
+
+    /* ── INPUT AREA ── */
+    .input-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .url-input {
+      flex: 1;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .url-input::placeholder { color: var(--muted); }
+
+    .url-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,229,255,.1);
+    }
+
+    .btn-dl {
+      background: linear-gradient(135deg, var(--accent3), var(--accent));
+      border: none;
+      border-radius: 12px;
+      padding: 14px 24px;
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: .05em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform .15s, box-shadow .15s, opacity .15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-dl:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(123,47,255,.4); }
+    .btn-dl:active { transform: translateY(0); }
+    .btn-dl:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .btn-dl .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto;
+    }
+
+    .btn-dl.loading .label { display: none; }
+    .btn-dl.loading .spinner { display: block; }
+
+    /* ── OPTIONS ── */
+    .options-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .opt-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-right: 4px;
+    }
+
+    .toggle-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .toggle-btn {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .toggle-btn.active {
+      background: rgba(0,229,255,.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .select-quality {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    /* ── RESULT ── */
+    #result {
+      display: none;
+      animation: fadeUp .5s ease both;
+    }
+
+    .result-card {
+      background: rgba(0,245,160,.06);
+      border: 1px solid rgba(0,245,160,.2);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .result-icon {
+      width: 44px; height: 44px;
+      background: rgba(0,245,160,.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--success);
+    }
+
+    .result-info { flex: 1; min-width: 0; }
+
+    .result-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--success);
+      margin-bottom: 4px;
+    }
+
+    .result-url {
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      margin-bottom: 14px;
+    }
+
+    .btn-open {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--success);
+      color: #000;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: transform .15s, box-shadow .15s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-open:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,245,160,.3); }
+
+    /* ── ERROR ── */
+    #error-box {
+      display: none;
+      background: rgba(255,71,87,.07);
+      border: 1px solid rgba(255,71,87,.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: var(--error);
+      animation: fadeUp .4s ease both;
+      margin-top: 16px;
+    }
+
+    /* ── HOW TO ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 8px;
+      animation: fadeUp 1s ease .2s both;
+    }
+
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      position: relative;
+    }
+
+    .step-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--border);
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    .step-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .step-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .05em;
+      animation: fadeUp 1s ease .4s both;
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp   { from { opacity: 0; transform: translateY(20px);  } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin     { to { transform: rotate(360deg); } }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 520px) {
+      .input-group { flex-direction: column; }
+      .btn-dl { width: 100%; }
+      .card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      VidDrop
+    </div>
+    <h1>Download<br/>Anything</h1>
+    <p class="subtitle">Download video & audio dari platform favoritmu.<br/>Gratis, cepat, tanpa watermark.</p>
+    <div class="platforms">
+      <span class="pill">YouTube</span>
+      <span class="pill">TikTok</span>
+      <span class="pill">Instagram</span>
+      <span class="pill">Twitter/X</span>
+      <span class="pill">Facebook</span>
+      <span class="pill">Reddit</span>
+      <span class="pill">Pinterest</span>
+      <span class="pill">Twitch</span>
+      <span class="pill">Vimeo</span>
+      <span class="pill">SoundCloud</span>
+    </div>
+  </header>
+
+  <!-- MAIN CARD -->
+  <div class="card">
+    <div class="input-group">
+      <input
+        type="url"
+        id="urlInput"
+        class="url-input"
+        placeholder="Tempel link video di sini..."
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="btn-dl" id="dlBtn" onclick="download()">
+        <span class="label">↓ Download</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+
+    <div class="options-row">
+      <span class="opt-label">Mode:</span>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="modeAuto" onclick="setMode('auto')">Auto</button>
+        <button class="toggle-btn" id="modeAudio" onclick="setMode('audio')">Audio Only</button>
+      </div>
+      <span class="opt-label" style="margin-left:8px;">Kualitas:</span>
+      <select class="select-quality" id="qualitySelect">
+        <option value="max">Max</option>
+        <option value="2160">4K</option>
+        <option value="1440">1440p</option>
+        <option value="1080" selected>1080p</option>
+        <option value="720">720p</option>
+        <option value="480">480p</option>
+        <option value="360">360p</option>
+      </select>
+    </div>
+
+    <!-- ERROR -->
+    <div id="error-box"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div class="result-card">
+      <div class="result-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="result-info">
+        <div class="result-title">✦ Link berhasil dibuat!</div>
+        <div class="result-url" id="resultUrl"></div>
+        <a id="resultLink" class="btn-open" href="#" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Buka / Simpan File
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEPS -->
+  <div style="margin-top:48px;">
+    <p style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:16px;">Cara pakai</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-title">Copy Link</div>
+        <div class="step-desc">Salin URL video dari platform manapun yang kamu inginkan.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-title">Tempel & Pilih</div>
+        <div class="step-desc">Tempel link di kolom input, pilih kualitas dan mode yang diinginkan.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-title">Download</div>
+        <div class="step-desc">Klik tombol download, lalu buka link yang muncul untuk menyimpan file.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Powered by <a href="https://cobalt.tools" target="_blank">Cobalt API</a> &nbsp;·&nbsp;
+    Hanya untuk penggunaan pribadi &nbsp;·&nbsp; Hormati hak cipta konten
+  </footer>
+
+</div>
+
+<script>
+  let currentMode = 'auto';
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('modeAuto').classList.toggle('active', mode === 'auto');
+    document.getElementById('modeAudio').classList.toggle('active', mode === 'audio');
+    const qualitySelect = document.getElementById('qualitySelect');
+    qualitySelect.style.opacity = mode === 'audio' ? '0.4' : '1';
+    qualitySelect.disabled = mode === 'audio';
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('error-box');
+    box.textContent = '⚠ ' + msg;
+    box.style.display = 'block';
+    document.getElementById('result').style.display = 'none';
+  }
+
+  function hideError() {
+    document.getElementById('error-box').style.display = 'none';
+  }
+
+  function setLoading(state) {
+    const btn = document.getElementById('dlBtn');
+    btn.disabled = state;
+    btn.classList.toggle('loading', state);
+  }
+
+  async function download() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) { showError('Masukkan URL video terlebih dahulu.'); return; }
+    if (!url.startsWith('http')) { showError('URL tidak valid. Pastikan dimulai dengan https://'); return; }
+
+    hideError();
+    setLoading(true);
+    document.getElementById('result').style.display = 'none';
+
+    const quality = document.getElementById('qualitySelect').value;
+
+    const body = {
+      url: url,
+      videoQuality: quality === 'max' ? 'max' : quality,
+      filenameStyle: 'pretty',
+    };
+
+    if (currentMode === 'audio') {
+      body.downloadMode = 'audio';
+    }
+
+    try {
+      const res = await fetch('https://cobalt.tools/api', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (data.status === 'redirect' || data.status === 'stream' || data.url) {
+        const dlUrl = data.url;
+        document.getElementById('resultUrl').textContent = dlUrl;
+        document.getElementById('resultLink').href = dlUrl;
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else if (data.status === 'picker') {
+        // Multiple streams (e.g. TikTok slideshow)
+        const dlUrl = data.picker[0].url;
+        document.getElementById('resultUrl').textContent = dlUrl + ` (+${data.picker.length - 1} file lainnya)`;
+        document.getElementById('resultLink').href = dlUrl;
+        document.getElementById('result').style.display = 'block';
+      } else if (data.status === 'error') {
+        const msg = data.error?.code || 'Gagal memproses URL ini.';
+        showError('Error dari server: ' + msg);
+      } else {
+        showError('Respons tidak dikenali. Coba URL lain atau cek kembali link-nya.');
+      }
+    } catch (err) {
+      showError('Tidak dapat terhubung ke Cobalt API. Pastikan internet aktif dan coba lagi.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Enter key support
+  document.getElementById('urlInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') download();
+  });
+
+  // Paste & go
+  document.getElementById('urlInput').addEventListener('paste', () => {
+    setTimeout(() => {
+      const val = document.getElementById('urlInput').value.trim();
+      if (val.startsWith('http')) download();
+    }, 100);
+  });
+</script>
+</body>
+</html>
